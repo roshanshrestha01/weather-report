@@ -9,4 +9,4 @@ TIME_ZONE = 'Asia/Kathmandu'
 
 CSV_DRUMP_DIR = os.path.join(BASE_DIR, 'csv')
 
-
+FORECAST_TO_SHOW = 12

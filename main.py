@@ -1,11 +1,16 @@
+import csv
+import os
+import shutil
+
 from datetime import datetime
 
 import gi
 import requests
+from tempfile import NamedTemporaryFile
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gio
-from settings import WEATHER_BASE_API, WEATHER_SINGLE_BASE_API
+from settings import WEATHER_BASE_API, WEATHER_SINGLE_BASE_API, CSV_DRUMP_DIR
 
 
 class WeatherReportWindow(Gtk.Window):
@@ -62,6 +67,7 @@ class WeatherReportWindow(Gtk.Window):
             wind_speed=data.get('wind').get('speed'),
             wind_deg=data.get('wind').get('deg'),
         )
+        self.save_in_csv(report)
         forecast = []
         for data in weather_data.get('list'):
             forecast.append(dict(
@@ -75,6 +81,21 @@ class WeatherReportWindow(Gtk.Window):
             ))
         report['forecast'] = forecast
         return report
+
+    def save_in_csv(self, data):
+        if not os.path.exists(CSV_DRUMP_DIR):
+            os.makedirs(CSV_DRUMP_DIR)
+        fields = ['timestamp', 'dt_text', 'temp', 'pressure', 'humidity', 'wind_speed', 'wind_deg']
+        filename = os.path.join(CSV_DRUMP_DIR, '%s.csv' % self.city_name)
+        with open(filename, mode='w') as csv_file:
+            row = data.copy()
+            if 'city_name' in row.keys():
+                row.pop('city_name')
+            if 'country' in row.keys():
+                row.pop('country')
+            writer = csv.DictWriter(csv_file, fieldnames=fields)
+            writer.writer.writerow(['timestamp', 'dt', 'temp', 'pressure', 'humidity', 'wind_speed', 'wind_deg'])
+            writer.writerow(row)
 
     def go_back(self, widget):
         self.parent.show_all()

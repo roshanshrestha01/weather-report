@@ -2,8 +2,52 @@ import gi
 import requests
 
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
+from gi.repository import Gtk, Gio
 from settings import WEATHER_BASE_API, API_KEY
+
+
+class WeatherReportWindow(Gtk.Window):
+    def __init__(self, parent, weather_data, city_name):
+        Gtk.Window.__init__(self, title="Weather Report")
+        self.parent = parent
+        self.weather_data = weather_data
+        self.city_name = city_name
+        self.connect("destroy", self.on_destroy)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_border_width(10)
+        self.set_size_request(800, 600)
+        self.add(Gtk.Label("This is another window"))
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        self.set_titlebar(hb)
+
+        refresh = Gtk.Button()
+        icon = Gio.ThemedIcon(name="mail-send-receive-symbolic")
+        image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
+        refresh.connect("clicked", self.refresh)
+        refresh.add(image)
+        hb.pack_end(refresh)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        Gtk.StyleContext.add_class(box.get_style_context(), "linked")
+
+        go_back = Gtk.Button()
+        go_back.add(Gtk.Arrow(Gtk.ArrowType.LEFT, Gtk.ShadowType.NONE))
+        go_back.connect("clicked", self.go_back)
+        box.add(go_back)
+        hb.pack_start(box)
+        self.add(Gtk.TextView())
+        self.show_all()
+
+    def go_back(self, widget):
+        self.parent.show_all()
+        self.hide()
+
+    def refresh(self, widget):
+        pass
+
+    def on_destroy(self, widget):
+        widget.hide()
 
 
 class WeatherForecastWindow(Gtk.Window):
@@ -13,7 +57,9 @@ class WeatherForecastWindow(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_border_width(10)
         self.CITY_NAME = None  # for refresh action
-        self.add_to_main(self.setup_city_name_box, 'city_name_gui')
+        self.weather_report_gui = self.set_up_weather_report()
+        self.city_name_gui = self.setup_city_name_box()
+        self.add(self.city_name_gui)
 
     def setup_city_name_box(self):
         box_outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -30,7 +76,7 @@ class WeatherForecastWindow(Gtk.Window):
         city_name = Gtk.Label("City name", xalign=0)
         self.city_name = Gtk.Entry()
         self.city_name.set_size_request(400, 20)
-        # self.city_name.set_text("Kathmandu")
+        self.city_name.set_text("Kathmandu")
         self.city_name.set_width_chars(40)
 
         vbox.pack_start(city_name, False, False, 0)
@@ -48,39 +94,25 @@ class WeatherForecastWindow(Gtk.Window):
         self.update = Gtk.Button.new_with_label("Refresh")
         self.update.set_size_request(200, 20)
         hbox.pack_end(self.check_weather, False, False, 0)
-        # hbox.pack_start(self.update, False, False, 0)
 
         listbox.add(row)
         return box_outer
 
-    def add_to_main(self, box, key):
-        box = box()
-        setattr(self, key, box)
-        self.add(getattr(self, key))
-
-    def remove_from_main(self, key):
-        self.remove(getattr(self, key))
-
     def get_weather_forecast(self, button):
         city_name = self.city_name.get_text()
+        print(city_name)
         if not city_name:
-            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
-                                       Gtk.ButtonsType.OK, "Please enter a city name.")
+            dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO, Gtk.ButtonsType.OK, "Please enter a city name.")
             dialog.format_secondary_text(
-                "You have place empty city name.")
+                "You have not entered any city name.")
             dialog.run()
-            print("INFO dialog closed")
-
             dialog.destroy()
             return
-        self.remove_from_main('city_name_gui')
-        self.CITY_NAME = city_name
-
         url = WEATHER_BASE_API + city_name + '&appid=' + API_KEY
         response = requests.get(url)
-
-        print(response.json())
-        print('Getting weather report from google for %s' % self.city_name.get_text())
+        data = response.json()
+        self.hide()
+        ano = WeatherReportWindow(self, data, city_name)
 
 
 win = WeatherForecastWindow()

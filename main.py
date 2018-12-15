@@ -87,15 +87,20 @@ class WeatherReportWindow(Gtk.Window):
             os.makedirs(CSV_DRUMP_DIR)
         fields = ['timestamp', 'dt_text', 'temp', 'pressure', 'humidity', 'wind_speed', 'wind_deg']
         filename = os.path.join(CSV_DRUMP_DIR, '%s.csv' % self.city_name)
-        with open(filename, mode='w') as csv_file:
-            row = data.copy()
-            if 'city_name' in row.keys():
-                row.pop('city_name')
-            if 'country' in row.keys():
-                row.pop('country')
-            writer = csv.DictWriter(csv_file, fieldnames=fields)
-            writer.writer.writerow(['timestamp', 'dt', 'temp', 'pressure', 'humidity', 'wind_speed', 'wind_deg'])
-            writer.writerow(row)
+        row = data.copy()
+        if 'city_name' in row.keys():
+            row.pop('city_name')
+        if 'country' in row.keys():
+            row.pop('country')
+        if os.path.exists(filename):
+            with open(filename, mode='a', encoding='utf8') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=fields)
+                writer.writerow(row)
+        else:
+            with open(filename, mode='w', encoding='utf8') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=fields)
+                writer.writer.writerow(['timestamp', 'dt', 'temp', 'pressure', 'humidity', 'wind_speed', 'wind_deg'])
+                writer.writerow(row)
 
     def go_back(self, widget):
         self.parent.show_all()

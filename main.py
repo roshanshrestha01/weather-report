@@ -107,7 +107,7 @@ class WeatherReportWindow(Gtk.Window):
         self.hide()
 
     def refresh(self, widget):
-        pass
+        self.parse_data(self.weather_data)
 
     def on_destroy(self, widget):
         widget.hide()

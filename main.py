@@ -11,6 +11,11 @@ from tempfile import NamedTemporaryFile
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gio, Pango
 from settings import WEATHER_BASE_API, WEATHER_SINGLE_BASE_API, CSV_DRUMP_DIR, FORECAST_TO_SHOW
+from matplotlib.figure import Figure
+from numpy import arange, pi, random, linspace
+import matplotlib.cm as cm
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
 
 class ListBoxRowWithData(Gtk.ListBoxRow):
@@ -28,6 +33,39 @@ class ListBoxRowWithData(Gtk.ListBoxRow):
         vbox.pack_start(dt_text_label, True, True, 0)
         vbox.pack_start(temp_label, True, True, 0)
         self.add(vbox)
+
+
+class TemparatureChartWindow(Gtk.Window):
+    def __init__(self, city_name):
+        Gtk.Window.__init__(self, title="Temparature Chart")
+        filename = os.path.join(CSV_DRUMP_DIR, '%s.csv' % city_name)
+        self.connect("destroy", self.on_destroy)
+
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_border_width(10)
+        self.set_size_request(800, 600)
+        self.data = []
+        self.date = []
+        self.temperature = []
+        with open(filename) as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                self.data.append(row)
+                self.date.append(row.get('dt'))
+                self.temperature.append(row.get('temp'))
+        fig = Figure(figsize=(5, 5), dpi=100)
+        ax = fig.add_subplot(111)
+        ax.tick_params(axis='x', rotation=90)
+        plt.gcf().autofmt_xdate()
+        ax.plot(self.date[-20:], [float(temp) for temp in self.temperature[-20:]])
+        canvas = FigureCanvas(fig)
+        canvas.set_size_request(400, 400)
+
+        self.add(canvas)
+        self.show_all()
+
+    def on_destroy(self, widget):
+        widget.hide()
 
 
 class WeatherReportWindow(Gtk.Window):
@@ -54,6 +92,10 @@ class WeatherReportWindow(Gtk.Window):
         refresh.connect("clicked", self.refresh)
         refresh.add(image)
         hb.pack_end(refresh)
+
+        chart = Gtk.Button().new_with_label("Temperature Chart")
+        chart.connect("clicked", self.temp_chart)
+        hb.pack_end(chart)
 
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         Gtk.StyleContext.add_class(box.get_style_context(), "linked")
@@ -124,6 +166,9 @@ class WeatherReportWindow(Gtk.Window):
         self.add(box_outer)
 
         self.show_all()
+
+    def temp_chart(self, widget):
+        TemparatureChartWindow(self.city_name)
 
     def parse_data(self, weather_data):
         city_name = weather_data.get('city').get('name')

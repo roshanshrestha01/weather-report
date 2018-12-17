@@ -1,38 +1,29 @@
 import csv
-import os
-import shutil
-
-from datetime import datetime
-
 import gi
+import os
 import requests
-from tempfile import NamedTemporaryFile
+from datetime import datetime
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gio, Pango
 from settings import WEATHER_BASE_API, WEATHER_SINGLE_BASE_API, CSV_DRUMP_DIR, FORECAST_TO_SHOW
 from matplotlib.figure import Figure
-from numpy import arange, pi, random, linspace
-import matplotlib.cm as cm
-from matplotlib import pyplot as plt
 from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
 
 class ListBoxRowWithData(Gtk.ListBoxRow):
-    def __init__(self, data):
+    def __init__(self, date, temp):
         super(Gtk.ListBoxRow, self).__init__()
-        self.data = data
-        dt_text = data.get('dt_text')
-        temp = str(self.data.get('temp')) + '°C'
-        dt_text_label = Gtk.Label(xalign=0)
-        dt_text_label.set_text(dt_text)
-        temp_label = Gtk.Label()
-        temp_label.set_text(temp)
-        vbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        vbox.set_homogeneous(False)
-        vbox.pack_start(dt_text_label, True, True, 0)
-        vbox.pack_start(temp_label, True, True, 0)
-        self.add(vbox)
+        fig = Figure(figsize=(5, 5), dpi=100)
+        ax = fig.add_subplot(111)
+        ax.ylabel = 'Temperature'
+        ax.xmargin = 2
+        # ax.tick_params(axis='x', rotation=90)
+        # plt.gcf().autofmt_xdate()
+        ax.plot(date, temp)
+        canvas = FigureCanvas(fig)
+        canvas.set_size_request(400, 400)
+        self.add(canvas)
 
 
 class TemparatureChartWindow(Gtk.Window):
@@ -55,9 +46,12 @@ class TemparatureChartWindow(Gtk.Window):
                 self.temperature.append(row.get('temp'))
         fig = Figure(figsize=(5, 5), dpi=100)
         ax = fig.add_subplot(111)
-        ax.tick_params(axis='x', rotation=90)
-        plt.gcf().autofmt_xdate()
-        ax.plot(self.date[-20:], [float(temp) for temp in self.temperature[-20:]])
+        # ax.tick_params(axis='x', rotation=90)
+        # plt.gcf().autofmt_xdate()
+        ax.plot(
+            [date[5:16].replace(" ", "\n") for date in self.date[-15:]],
+            [float(temp) for temp in self.temperature[-15:]]
+        )
         canvas = FigureCanvas(fig)
         canvas.set_size_request(400, 400)
 
@@ -80,7 +74,7 @@ class WeatherReportWindow(Gtk.Window):
 
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_border_width(10)
-        self.set_size_request(800, 600)
+        self.set_size_request(800, 900)
 
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
@@ -158,8 +152,12 @@ class WeatherReportWindow(Gtk.Window):
         weather_forecast_detail_listbox = Gtk.ListBox()
         weather_forecast_detail_listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         items = self.data.get('forecast')
+        date = []
+        temp = []
         for item in items[:FORECAST_TO_SHOW]:
-            weather_forecast_detail_listbox.add(ListBoxRowWithData(item))
+            date.append(item.get('dt_text')[5:16].replace(" ", "\n"))
+            temp.append(float(item.get('temp')))
+        weather_forecast_detail_listbox.add(ListBoxRowWithData(date, temp))
 
         box_outer.add(weather_forecast_detail_listbox)
 
@@ -295,6 +293,7 @@ class WeatherForecastWindow(Gtk.Window):
                 "You have not entered any city name.")
             dialog.run()
             dialog.destroy()
+            self.check_weather.set_label("Check weather")
             return
         url = WEATHER_BASE_API + city_name
         response = requests.get(url)
@@ -302,6 +301,7 @@ class WeatherForecastWindow(Gtk.Window):
         self.check_weather.set_label("Check weather")
         self.hide()
         weather_report = WeatherReportWindow(self, data, city_name)
+        return
 
 
 win = WeatherForecastWindow()
